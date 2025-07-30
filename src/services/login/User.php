@@ -9,6 +9,7 @@ namespace flipbox\saml\sp\services\login;
 use craft\base\Component;
 use craft\base\Field;
 use craft\elements\User as UserElement;
+use craft\errors\InvalidElementException;
 use craft\events\ElementEvent;
 use craft\models\FieldLayout;
 use flipbox\saml\core\exceptions\InvalidMessage;
@@ -31,9 +32,9 @@ class User extends Component
 {
     use AssertionTrait;
 
-    const EVENT_BEFORE_USER_SAVE = 'eventBeforeUserSave';
+    public const EVENT_BEFORE_USER_SAVE = 'eventBeforeUserSave';
 
-    const EVENT_GET_CUSTOM_USER_CRITERIA = 'eventGetCustomUserCriteria';
+    public const EVENT_GET_CUSTOM_USER_CRITERIA = 'eventGetCustomUserCriteria';
 
     /**
      * @var FieldLayout|null
@@ -54,9 +55,8 @@ class User extends Component
         SamlResponse $response,
         ProviderRecord $serviceProvider,
         ProviderRecord $identityProvider,
-        Settings $settings
+        Settings $settings,
     ) {
-
         $username = null;
 
         $nameIdOverride = $settings->nameIdAttributeOverride ?? $identityProvider->nameIdOverride;
@@ -77,7 +77,7 @@ class User extends Component
             // use nameid
             $assertion = $this->getFirstAssertion($response, $serviceProvider);
 
-            if (! $assertion->getNameId()) {
+            if (!$assertion->getNameId()) {
                 throw new InvalidMessage('Name ID is missing.');
             }
             $username = $assertion->getNameId()->getValue();
@@ -89,6 +89,31 @@ class User extends Component
     }
 
     /**
+     * @throws \Throwable
+     * @throws InvalidElementException
+     */
+    private function enableUser(UserElement $user): void
+    {
+        if ($user->getId()) {
+            \Craft::$app->getUsers()->activateUser($user);
+
+            return;
+        }
+
+        $user->enabled = true;
+        $user->archived = false;
+
+        $user->active = true;
+        $user->pending = false;
+        $user->locked = false;
+        $user->suspended = false;
+        $user->verificationCode = null;
+        $user->verificationCodeIssuedDate = null;
+        $user->invalidLoginCount = null;
+        $user->lastInvalidLoginDate = null;
+        $user->lockoutDate = null;
+    }
+    /**
      * @param ProviderIdentityRecord $identity
      * @return bool
      * @throws UserException
@@ -97,9 +122,7 @@ class User extends Component
     public function login(\flipbox\saml\sp\records\ProviderIdentityRecord $identity)
     {
         if ($identity->getUser()->getStatus() !== UserElement::STATUS_ACTIVE) {
-            if (! \Craft::$app->getUsers()->activateUser($identity->getUser())) {
-                throw new UserException("Can't activate user.");
-            }
+            $this->enableUser($identity->getUser());
         }
 
         if (\Craft::$app->getUser()->login(
@@ -133,7 +156,7 @@ class User extends Component
         SamlResponse $response,
         ProviderRecord $idp,
         ProviderRecord $sp,
-        Settings $settings
+        Settings $settings,
     ) {
 
         // enable and transform the user
@@ -159,7 +182,6 @@ class User extends Component
      */
     protected function save(UserElement $user)
     {
-
         $event = new ElementEvent();
         $event->element = $user;
         $event->isNew = !$user->id;
@@ -169,7 +191,7 @@ class User extends Component
             $event
         );
 
-        if (! \Craft::$app->getElements()->saveElement($user)) {
+        if (!\Craft::$app->getElements()->saveElement($user)) {
             Saml::error(
                 'User save failed: ' . \json_encode($user->getErrors())
             );
@@ -196,13 +218,13 @@ class User extends Component
         SamlResponse $response,
         ProviderRecord $idp,
         ProviderRecord $sp,
-        Settings $settings
+        Settings $settings,
     ) {
         /**
          * Is User Active?
          */
-        if ($user->id && ! UserHelper::isUserActive($user)) {
-            if (! $settings->enableUsers) {
+        if ($user->id && !UserHelper::isUserActive($user)) {
+            if (!$settings->enableUsers) {
                 throw new UserException('User access denied.');
             }
             UserHelper::enableUser($user);
@@ -242,9 +264,8 @@ class User extends Component
         SamlResponse $response,
         ProviderRecord $idp,
         ProviderRecord $sp,
-        Settings $settings
+        Settings $settings,
     ) {
-
         foreach ($this->getAssertions($response, $sp) as $assertion) {
             /**
              * Check the provider first
@@ -288,9 +309,8 @@ class User extends Component
         UserElement $user,
         $attributeName,
         $attributeValue,
-        $craftProperty
+        $craftProperty,
     ) {
-
         $originalValues = $attributeValue;
         if (is_array($attributeValue)) {
             $attributeValue = isset($attributeValue[0]) ? $attributeValue[0] : null;
@@ -327,14 +347,14 @@ class User extends Component
      */
     protected function getFieldLayoutField(UserElement $user, $fieldHandle)
     {
-        if (! $this->fieldLayout) {
+        if (!$this->fieldLayout) {
             $this->fieldLayout = $user->getFieldLayout();
         }
         if (is_null($this->fieldLayout)) {
             return null;
         }
 
-        if (! isset($this->fields[$fieldHandle])) {
+        if (!isset($this->fields[$fieldHandle])) {
             $this->fields[$fieldHandle] = $this->fieldLayout->getFieldByHandle($fieldHandle);
         }
 
@@ -360,7 +380,7 @@ class User extends Component
             )
         );
 
-        if (! is_null($field)) {
+        if (!is_null($field)) {
             $user->setFieldValue($name, $value);
         } else {
             $user->{$name} = $value;
@@ -394,7 +414,7 @@ class User extends Component
          */
         if (!($user = $this->getByUsernameOrEmail($username))) {
             // Should we create a new user? what's the setting say?
-            if (! Saml::getInstance()->getSettings()->createUser) {
+            if (!Saml::getInstance()->getSettings()->createUser) {
                 throw new UserException("System doesn't have permission to create a new user.");
             }
 
@@ -416,9 +436,9 @@ class User extends Component
     protected function getByUsernameOrEmail($usernameOrEmail, $archived = false)
     {
         $event = new UserQueryCriteria([
-            'userQuery'       => UserElement::find(),
+            'userQuery' => UserElement::find(),
             'usernameOrEmail' => $usernameOrEmail,
-            'archived'        => $archived,
+            'archived' => $archived,
         ]);
 
         if (Event::hasHandlers(self::class, self::EVENT_GET_CUSTOM_USER_CRITERIA)) {
@@ -434,7 +454,7 @@ class User extends Component
                 [
                     'or',
                     ['username' => $event->usernameOrEmail],
-                    ['email'    => $event->usernameOrEmail],
+                    ['email' => $event->usernameOrEmail],
                 ]
             )
             ->status(null)
@@ -443,7 +463,6 @@ class User extends Component
 
     private function getAttributeValue($attributeValue)
     {
-
         if (is_array($attributeValue)) {
             $attributeValue = isset($attributeValue[0]) ? $attributeValue[0] : null;
         }

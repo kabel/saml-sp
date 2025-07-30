@@ -58,7 +58,7 @@ class SignedElement
             }
         }
 
-        if (! empty($errors)) {
+        if (!empty($errors)) {
             throw $errors[0];
         }
 

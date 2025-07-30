@@ -1,5 +1,24 @@
 # Release Notes for SAML SP
 
+## 5.1.3 - 2025-01-29
+
+### Fixed
+- admin login screen buttons kicking off sso
+
+## 5.1.2 - 2024-12-03 [CRITICAL]
+
+### Fixed
+- SECURITY PATCH with saml-core/saml2 dependencies. Update REQUIRED! More info can be found here: https://github.com/simplesamlphp/saml2/security/advisories/GHSA-pxm4-r5ph-q2m2#event-375127
+
+## 5.1.1
+### Feature
+- Allow to modify UserQuery in getByUsernameOrEmail (#216)
+
+## 5.0.0 - 2024-04-17
+
+### Fixed
+- Craft 5.0 compatibility
+
 ## 4.3.1 - 2024-12-03 [CRITICAL]
 
 ### Fixed

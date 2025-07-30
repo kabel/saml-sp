@@ -25,7 +25,7 @@ use yii\base\UserException;
 class UserGroups extends Component
 {
     use AssertionTrait;
-    const EVENT_BEFORE_USER_GROUP_ASSIGN = 'eventBeforeUserGroupAssign';
+    public const EVENT_BEFORE_USER_GROUP_ASSIGN = 'eventBeforeUserGroupAssign';
 
     /**
      * @param string $groupName
@@ -35,14 +35,13 @@ class UserGroups extends Component
      */
     protected function find($groupName)
     {
-
         $groupHandle = StringHelper::camelCase($groupName);
         Saml::debug("GROUP LOOKUP ${groupName}");
 
-        if (! $userGroup = \Craft::$app->getUserGroups()->getGroupByHandle($groupHandle)) {
+        if (!$userGroup = \Craft::$app->getUserGroups()->getGroupByHandle($groupHandle)) {
             Saml::warning(
                 sprintf(
-                    "Group handle %s not found.".
+                    "Group handle %s not found." .
                     " This group must be created by an admin users before user can be assigned to it.",
                     $groupHandle
                 )
@@ -98,7 +97,7 @@ class UserGroups extends Component
      */
     protected function getGroupsByAssertion(
         Assertion $assertion,
-        Settings $settings
+        Settings $settings,
     ) {
         /**
          * Nothing to do, move on
@@ -190,9 +189,8 @@ class UserGroups extends Component
         UserElement $user,
         Response $response,
         array $groups,
-        Settings $settings
+        Settings $settings,
     ) {
-
         $event = new UserGroupAssign();
         $event->user = $user;
         $event->response = $response;
@@ -213,7 +211,7 @@ class UserGroups extends Component
             // pass the list of unique ids
             array_unique(
                 array_map(
-                    function ($group) {
+                    function($group) {
                         return (int)$group->id;
                     },
                     $event->groupToBeAssigned
@@ -241,9 +239,9 @@ class UserGroups extends Component
         /**
          * if it's not empty add the groups
          */
-        if (! empty($newGroups)) {
+        if (!empty($newGroups)) {
             $groupIds = array_map(
-                function ($group) {
+                function($group) {
                     return (int)$group->id;
                 },
                 $groups

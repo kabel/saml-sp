@@ -5,7 +5,6 @@ namespace flipbox\saml\sp\twig;
 use flipbox\saml\core\helpers\UrlHelper;
 use flipbox\saml\sp\records\ProviderRecord;
 use flipbox\saml\sp\Saml;
-use flipbox\saml\sp\services\Provider;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 use yii\base\InvalidArgumentException;
